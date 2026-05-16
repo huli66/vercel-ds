@@ -1,0 +1,24 @@
+# 依赖
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# 构建产物
+dist/
+
+# 环境变量
+*.env
+.env.*
+
+# 测试
+test-results/
+playwright-report/
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
