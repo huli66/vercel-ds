@@ -28,7 +28,7 @@ export class LocalChatStorage implements ChatStorage {
         createdAt,
         updatedAt,
       }))
-      .sort((a, b) => b.updatedAt - a.updatedAt);
+      .sort((a, b) => b.createdAt - a.createdAt);
   }
 
   async getConversation(id: string): Promise<Conversation | null> {

@@ -61,8 +61,10 @@
 
 - 顶部：可选的 API Key 输入框（password 类型）
 - 中间：消息列表（用户消息蓝色背景，AI 消息灰色背景）
-- 底部：输入框 + 发送按钮
+- 底部：多行 textarea 输入框（3行默认，最多10行）+ 发送按钮
+  - Enter 发送，Shift+Enter 换行
 - 流式状态下显示"AI 正在思考..."
+- 智能滚动：流式输出时自动滚动到底部，用户向上翻阅时暂停自动滚动并显示浮动"↓"按钮
 ```
 
 ---
@@ -168,9 +170,70 @@ E2E 测试 (e2e/chat.spec.ts)：
 
 ---
 
+## 阶段五：Markdown 富文本渲染
+
+```
+为 AI 回复添加 Markdown 富文本渲染支持（用户消息保持纯文本）。
+
+### 安装依赖
+
+pnpm add react-markdown remark-gfm remark-math rehype-katex rehype-highlight mermaid katex
+
+### 在 layout.tsx 引入 KaTeX CSS
+
+import "katex/dist/katex.min.css";
+
+### 创建 MermaidBlock 组件 (src/components/MermaidBlock.tsx)
+
+- 接收 mermaid 语法字符串 code
+- 使用 useEffect + 动态 import("mermaid") 后调用 mermaid.render() 渲染为 SVG
+- 渲染成功则 innerHTML 插入 SVG，失败则显示原始代码作为 fallback
+- 使用 data-testid="mermaid-container" 和 data-testid="mermaid-error" 便于测试
+
+### 创建 MarkdownRenderer 组件 (src/components/MarkdownRenderer.tsx)
+
+- 使用 react-markdown 渲染 Markdown
+- 插件配置：remarkPlugins=[remarkGfm, remarkMath], rehypePlugins=[rehypeKatex, rehypeHighlight]
+- 自定义 components 中的 code 组件：检测 language-mermaid 时渲染 MermaidBlock，其他正常显示
+- 自定义 pre/table/th/td 组件添加样式（代码块深色背景、表格边框）
+- 包裹 div 使用 data-testid="markdown-renderer"
+
+### 修改 ChatArea 组件
+
+- 导入 MarkdownRenderer
+- AI 消息（message.role !== "user"）使用 <MarkdownRenderer content={...} />
+- 用户消息保持 <span style={{ whiteSpace: "pre-wrap" }}> 纯文本
+
+### 测试
+
+单元测试 (tests/components/markdown.test.tsx)：
+- 基本 Markdown 渲染（标题、粗体、列表）
+- GFM 表格渲染
+- 代码块高亮（带 language- 类名）
+- LaTeX 公式渲染（.katex 类存在）
+- Mermaid 代码块触发 MermaidBlock 组件
+
+单元测试 (tests/components/mermaid.test.tsx)：
+- mock mermaid.render() 成功时渲染 SVG
+- mock mermaid.render() 失败时显示 fallback
+
+E2E 测试 (e2e/markdown.spec.ts)：
+- 通过 page.route() mock /api/chat 返回预设流式响应
+- 验证 AI 消息渲染出 h1、table、pre code 等 HTML 元素
+- 验证 mermaid 代码块渲染为 SVG
+- 验证用户消息中的 markdown 语法不被渲染（保持纯文本）
+
+### 流式响应 mock 格式
+
+E2E 测试中 mock AI SDK 流式响应格式：
+`0:${JSON.stringify(text)}\n` + finish/done 事件行
+```
+
+---
+
 ## 一句话版本（给 AI 的完整提示）
 
-> 使用 Next.js 16 App Router + TypeScript + pnpm，基于 Vercel AI SDK v6（ai、@ai-sdk/deepseek、@ai-sdk/react）构建 DeepSeek 流式聊天应用。功能包含：左侧历史对话侧边栏（新建/切换/删除，localStorage 持久化，ChatStorage 接口预留服务端扩展），右侧聊天区域支持流式渲染和自定义 API Key 输入。注意 v6 API 变化：useChat 返回 sendMessage/status 而非 input/handleSubmit，消息格式是 UIMessage（parts 数组）而非 content 字符串，服务端需 convertToModelMessages（异步）转换后再传给 streamText，响应用 toUIMessageStreamResponse。测试使用 Vitest（单元+组件）+ Playwright（E2E）。
+> 使用 Next.js 16 App Router + TypeScript + pnpm，基于 Vercel AI SDK v6（ai、@ai-sdk/deepseek、@ai-sdk/react）构建 DeepSeek 流式聊天应用。功能包含：左侧历史对话侧边栏（新建/切换/删除，localStorage 持久化，ChatStorage 接口预留服务端扩展），右侧聊天区域支持流式渲染和自定义 API Key 输入，多行 textarea 输入（Enter 发送/Shift+Enter 换行），智能滚动（自动滚动+浮动回底按钮）。AI 回复使用 Markdown 富文本渲染（react-markdown + remark-gfm + remark-math + rehype-katex + rehype-highlight + mermaid），支持标题/表格/代码高亮/LaTeX 公式/Mermaid 流程图，用户消息保持纯文本。注意 v6 API 变化：useChat 返回 sendMessage/status 而非 input/handleSubmit，消息格式是 UIMessage（parts 数组）而非 content 字符串，服务端需 convertToModelMessages（异步）转换后再传给 streamText，响应用 toUIMessageStreamResponse。测试使用 Vitest（单元+组件）+ Playwright（E2E）。
 
 ---
 

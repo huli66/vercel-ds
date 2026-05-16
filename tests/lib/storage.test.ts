@@ -46,11 +46,11 @@ describe("LocalChatStorage", () => {
     expect(list[0]).not.toHaveProperty("messages");
   });
 
-  it("listConversations sorted by updatedAt desc", async () => {
+  it("listConversations sorted by createdAt desc", async () => {
     const older = makeConversation("conv-1", "Older");
-    older.updatedAt = 1000;
+    older.createdAt = 1000;
     const newer = makeConversation("conv-2", "Newer");
-    newer.updatedAt = 2000;
+    newer.createdAt = 2000;
 
     await storage.saveConversation(older);
     await storage.saveConversation(newer);

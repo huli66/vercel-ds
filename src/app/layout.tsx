@@ -1,3 +1,5 @@
+import "katex/dist/katex.min.css";
+
 export const metadata = {
   title: "AI Chat",
   description: "Chat with DeepSeek AI",

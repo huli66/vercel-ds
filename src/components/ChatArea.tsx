@@ -2,8 +2,9 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import type { UIMessage } from "ai";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 
 interface ChatAreaProps {
   conversationId: string;
@@ -19,16 +20,10 @@ export function ChatArea({
   onMessagesChange,
 }: ChatAreaProps) {
   const [input, setInput] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const autoScrollRef = useRef(true);
 
-  // useChat 是 AI SDK 提供的 React hook，用于管理聊天状态和流式响应
-  // - id: 聊天会话标识符，用于区分不同对话
-  // - transport: 指定请求发送方式，DefaultChatTransport 默认向 /api/chat 发送 POST 请求
-  //   如果不传 transport，useChat 也会默认使用 DefaultChatTransport({ api: "/api/chat" })
-  // - messages: 初始消息列表，用于恢复历史对话
-  // 返回值:
-  // - messages: 当前对话的所有消息（UIMessage[] 格式，包含 parts 数组而非 content 字符串）
-  // - sendMessage: 发送消息的方法，接受 { text } 和可选的 options（如 body、headers）
-  // - status: 当前状态 "ready" | "submitted" | "streaming" | "error"
   const { messages, sendMessage, status } = useChat({
     id: conversationId,
     transport: new DefaultChatTransport({ api: "/api/chat" }),
@@ -37,7 +32,36 @@ export function ChatArea({
 
   const isLoading = status === "streaming" || status === "submitted";
 
-  // 当消息变化时通知父组件，用于持久化到存储层
+  const isNearBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = scrollRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    }
+  }, []);
+
+  // Track scroll position to show/hide the floating button
+  const handleScroll = useCallback(() => {
+    const nearBottom = isNearBottom();
+    setShowScrollBtn(!nearBottom);
+    autoScrollRef.current = nearBottom;
+  }, [isNearBottom]);
+
+  // Auto-scroll when messages change (new message or streaming update)
+  useEffect(() => {
+    if (autoScrollRef.current) {
+      const el = scrollRef.current;
+      if (el) {
+        el.scrollTop = el.scrollHeight;
+      }
+    }
+  }, [messages]);
+
   useEffect(() => {
     if (messages.length > 0) {
       onMessagesChange(messages);
@@ -50,21 +74,23 @@ export function ChatArea({
 
     const text = input;
     setInput("");
-    // sendMessage 的第二个参数 options.body 会合并到 POST 请求体中
-    // 服务端可通过 req.json() 获取这些额外字段
+    // Force scroll on send
+    autoScrollRef.current = true;
     await sendMessage({ text }, { body: { apiKey: apiKey || undefined } });
   };
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: 20 }}>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      {/* Scrollable message area */}
       <div
+        ref={scrollRef}
+        onScroll={handleScroll}
         style={{
           flex: 1,
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: 16,
+          minHeight: 0,
           overflowY: "auto",
-          marginBottom: 16,
+          padding: 16,
+          position: "relative",
         }}
       >
         {messages.length === 0 && (
@@ -72,7 +98,6 @@ export function ChatArea({
             发送消息开始对话
           </p>
         )}
-        {/* AI SDK v6 中消息内容通过 message.parts 数组获取，而非 message.content */}
         {messages.map((message) => (
           <div
             key={message.id}
@@ -85,12 +110,25 @@ export function ChatArea({
             }}
           >
             <strong>{message.role === "user" ? "你" : "AI"}: </strong>
-            <span style={{ whiteSpace: "pre-wrap" }}>
-              {message.parts
-                .filter((part) => part.type === "text")
-                .map((part) => part.text)
-                .join("")}
-            </span>
+            {message.role === "user" ? (
+              <span style={{ whiteSpace: "pre-wrap" }}>
+                {message.parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("")}
+              </span>
+            ) : (
+              <MarkdownRenderer
+                content={message.parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("")}
+                isStreaming={
+                  isLoading &&
+                  message === messages[messages.length - 1]
+                }
+              />
+            )}
           </div>
         ))}
         {isLoading && messages[messages.length - 1]?.role === "user" && (
@@ -98,17 +136,75 @@ export function ChatArea({
         )}
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", gap: 8 }}>
-        <input
+      {/* Scroll to bottom floating button */}
+      {showScrollBtn && (
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={scrollToBottom}
+            aria-label="滚动到底部"
+            style={{
+              position: "absolute",
+              bottom: 8,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 40,
+              height: 40,
+              borderRadius: "50%",
+              backgroundColor: "#1976d2",
+              color: "#fff",
+              border: "none",
+              cursor: "pointer",
+              fontSize: 18,
+              lineHeight: 1,
+              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 10,
+            }}
+          >
+            ↓
+          </button>
+        </div>
+      )}
+
+      {/* Fixed input area */}
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          display: "flex",
+          gap: 8,
+          padding: "12px 16px",
+          borderTop: "1px solid #e0e0e0",
+          flexShrink: 0,
+          alignItems: "flex-end",
+        }}
+      >
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="输入消息..."
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              if (input.trim() && !isLoading) {
+                handleSubmit(e);
+              }
+            }
+          }}
+          placeholder="输入消息... (Shift+Enter 换行)"
+          rows={3}
           style={{
             flex: 1,
             padding: "10px 14px",
             border: "1px solid #ddd",
             borderRadius: 6,
             fontSize: 16,
+            resize: "none",
+            lineHeight: 1.5,
+            minHeight: `${3 * 1.5}em`,
+            maxHeight: `${10 * 1.5}em`,
+            overflowY: "auto",
+            fontFamily: "inherit",
           }}
         />
         <button
@@ -122,6 +218,7 @@ export function ChatArea({
             borderRadius: 6,
             cursor: isLoading ? "not-allowed" : "pointer",
             fontSize: 16,
+            alignSelf: "flex-end",
           }}
         >
           发送

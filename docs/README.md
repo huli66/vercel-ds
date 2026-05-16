@@ -9,6 +9,9 @@
 - 左侧历史对话列表（新建/切换/删除）
 - 消息持久化（localStorage，可扩展为服务端存储）
 - 支持用户输入自定义 DeepSeek API Key
+- AI 回复 Markdown 富文本渲染（代码高亮、表格、LaTeX 公式、Mermaid 流程图）
+- 多行输入框（textarea，Shift+Enter 换行）
+- 智能滚动（自动滚动 + 浮动"滚动到底部"按钮）
 
 ## 2. 技术架构
 
@@ -121,12 +124,26 @@ interface ChatStorage {
 - `ConversationMeta` — 列表展示用（id, title, createdAt, updatedAt）
 - `Conversation` — 完整数据（Meta + messages）
 
-### 3.4 组件结构
+### 3.4 Markdown 渲染 (`src/components/MarkdownRenderer.tsx`)
+
+**职责：** 将 AI 回复渲染为富文本（用户消息保持纯文本）。
+
+**插件栈：**
+- `remark-gfm` — GFM 表格、删除线等
+- `remark-math` + `rehype-katex` — LaTeX 数学公式
+- `rehype-highlight` — 代码块语法高亮
+- `MermaidBlock` 组件 — Mermaid 流程图（流式传输时显示原始代码，完成后渲染 SVG）
+
+**自定义样式：** pre（深色背景）、table/th/td（边框）
+
+### 3.5 组件结构
 
 ```
 Page（状态管理 + 布局）
 ├── Sidebar（对话列表，纯展示组件）
 └── ChatArea（聊天区域，内含 useChat hook）
+    ├── MarkdownRenderer（AI 回复富文本渲染）
+    │   └── MermaidBlock（Mermaid 图表渲染）
     key={activeId}  ← 切换对话时强制重新挂载
 ```
 
@@ -134,6 +151,8 @@ Page（状态管理 + 布局）
 - `ChatArea` 使用 `key={activeId}`，切换对话时 React 会销毁旧实例并创建新实例
 - 这确保 `useChat` hook 用新的 messages 重新初始化，避免不同对话间状态混乱
 - `onMessagesChange` 回调在消息变化时通知 Page 进行持久化
+- 输入框为多行 textarea（3 行默认高度，最多 10 行），Shift+Enter 换行，Enter 发送
+- 智能滚动：流式输出时自动滚动，用户向上翻阅时暂停自动滚动，显示浮动按钮可快速回到底部
 
 ## 4. AI SDK v6 的坑（重要）
 
@@ -167,14 +186,10 @@ class ServerChatStorage implements ChatStorage {
 - 将选中的模型通过 `sendMessage` 的 `body` 传给服务端
 - 服务端根据 model 参数创建不同的 provider
 
-### 5.3 Markdown 渲染
-- 安装 `react-markdown` + `remark-gfm`
-- 在消息展示处用 Markdown 组件替代纯文本
-
-### 5.4 消息导出
+### 5.3 消息导出
 - 添加导出按钮，将对话导出为 JSON/Markdown 文件
 
-### 5.5 系统提示词
+### 5.4 系统提示词
 - 在 UI 中添加系统提示词输入
 - 通过 body 传到服务端，在 streamText 的 system 参数中使用
 

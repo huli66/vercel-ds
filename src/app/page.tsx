@@ -103,8 +103,8 @@ export default function Page() {
         onDelete={handleDelete}
       />
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid #e0e0e0" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid #e0e0e0", flexShrink: 0 }}>
           <label style={{ fontSize: 14, color: "#666" }}>
             API Key (可选):
           </label>
