@@ -1,12 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { Sidebar } from "@/components/Sidebar";
+import { SettingsProvider } from "@/contexts/SettingsContext";
 import type { ConversationMeta } from "@/lib/storage";
 
 const mockConversations: ConversationMeta[] = [
   { id: "1", title: "First Chat", createdAt: 1000, updatedAt: 2000 },
   { id: "2", title: "Second Chat", createdAt: 1500, updatedAt: 2500 },
 ];
+
+function renderWithProviders(ui: React.ReactElement) {
+  return render(<SettingsProvider>{ui}</SettingsProvider>);
+}
 
 describe("Sidebar", () => {
   const onSelect = vi.fn();
@@ -18,7 +23,7 @@ describe("Sidebar", () => {
   });
 
   it("renders empty state when no conversations", () => {
-    render(
+    renderWithProviders(
       <Sidebar
         conversations={[]}
         activeId={null}
@@ -31,7 +36,7 @@ describe("Sidebar", () => {
   });
 
   it("renders conversation list", () => {
-    render(
+    renderWithProviders(
       <Sidebar
         conversations={mockConversations}
         activeId={null}
@@ -45,7 +50,7 @@ describe("Sidebar", () => {
   });
 
   it("calls onNew when new button clicked", () => {
-    render(
+    renderWithProviders(
       <Sidebar
         conversations={[]}
         activeId={null}
@@ -54,12 +59,12 @@ describe("Sidebar", () => {
         onDelete={onDelete}
       />
     );
-    fireEvent.click(screen.getByText("+ 新建对话"));
+    fireEvent.click(screen.getByText("新建对话"));
     expect(onNew).toHaveBeenCalledOnce();
   });
 
   it("calls onSelect when conversation clicked", () => {
-    render(
+    renderWithProviders(
       <Sidebar
         conversations={mockConversations}
         activeId={null}
@@ -73,7 +78,7 @@ describe("Sidebar", () => {
   });
 
   it("calls onDelete when delete button clicked", () => {
-    render(
+    renderWithProviders(
       <Sidebar
         conversations={mockConversations}
         activeId={null}

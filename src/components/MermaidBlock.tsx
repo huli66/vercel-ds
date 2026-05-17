@@ -48,7 +48,7 @@ export function MermaidBlock({ code }: MermaidBlockProps) {
     <div
       ref={containerRef}
       data-testid="mermaid-container"
-      style={{ display: "flex", justifyContent: "center", margin: "16px 0" }}
+      className="flex justify-center my-4"
     />
   );
 }

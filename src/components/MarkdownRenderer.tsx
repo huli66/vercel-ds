@@ -27,7 +27,6 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
         return <MermaidBlock code={codeString} />;
       }
 
-      // Inline code (no language class and not inside pre)
       if (!className) {
         return (
           <code className={className} {...props}>
@@ -44,50 +43,28 @@ export function MarkdownRenderer({ content, isStreaming }: MarkdownRendererProps
     },
     pre({ children }) {
       return (
-        <pre
-          style={{
-            backgroundColor: "#1e1e1e",
-            color: "#d4d4d4",
-            padding: "16px",
-            borderRadius: "8px",
-            overflow: "auto",
-            margin: "12px 0",
-          }}
-        >
+        <pre className="bg-[#1e1e1e] dark:bg-[#0d0d0d] text-[#d4d4d4] p-4 rounded-lg overflow-auto my-3">
           {children}
         </pre>
       );
     },
     table({ children }) {
       return (
-        <table
-          style={{
-            borderCollapse: "collapse",
-            width: "100%",
-            margin: "12px 0",
-          }}
-        >
+        <table className="border-collapse w-full my-3">
           {children}
         </table>
       );
     },
     th({ children }) {
       return (
-        <th
-          style={{
-            border: "1px solid #ddd",
-            padding: "8px 12px",
-            backgroundColor: "#f5f5f5",
-            textAlign: "left",
-          }}
-        >
+        <th className="border border-border px-3 py-2 bg-muted text-left">
           {children}
         </th>
       );
     },
     td({ children }) {
       return (
-        <td style={{ border: "1px solid #ddd", padding: "8px 12px" }}>
+        <td className="border border-border px-3 py-2">
           {children}
         </td>
       );
